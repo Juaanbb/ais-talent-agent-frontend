@@ -49,3 +49,17 @@ body {
   padding: 0.75rem;
   border-radius: 0.5rem;
 }
+
+.login-shell {
+  min-height: 100vh;
+}
+
+.role-badge {
+  background: #f1c40f;
+  color: #1f2a44;
+}
+
+.shortlist-panel {
+  max-height: 200px;
+  overflow-y: auto;
+}

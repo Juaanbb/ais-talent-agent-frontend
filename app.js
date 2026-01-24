@@ -1,5 +1,9 @@
 (() => {
   const app = document.getElementById("app");
+  const storageKeys = {
+    user: "aisDemoUser",
+    shortlist: "aisShortlist",
+  };
 
   const state = {
     mode: "mock",
@@ -20,6 +24,28 @@
       version: "v1.0-mock",
     },
     notices: [],
+    user: null,
+    shortlist: [],
+    recentDecisions: [
+      {
+        id: "d1",
+        timestamp: "2026-01-22 09:14 AM",
+        action: "Role recommendations generated",
+        model: "AIS-Opti-2026",
+      },
+      {
+        id: "d2",
+        timestamp: "2026-01-22 11:32 AM",
+        action: "Bias check executed",
+        model: "AIS-Opti-2026",
+      },
+      {
+        id: "d3",
+        timestamp: "2026-01-23 08:05 AM",
+        action: "Upskilling plan generated",
+        model: "AIS-Opti-2026",
+      },
+    ],
   };
 
   const skillNormalization = {
@@ -34,12 +60,12 @@
     "people analytics": "people analytics",
     "talent analytics": "people analytics",
     "hr analytics": "people analytics",
-    "sql": "sql",
-    "python": "python",
-    "ml": "machine learning",
+    sql: "sql",
+    python: "python",
+    ml: "machine learning",
     "machine learning": "machine learning",
-    "dashboarding": "data visualization",
-    "communication": "communication",
+    dashboarding: "data visualization",
+    communication: "communication",
   };
 
   const mockProfiles = [
@@ -175,7 +201,35 @@
     },
   ];
 
+  const roleLabels = {
+    employee: "Employee",
+    recruiter: "Recruiter",
+    admin: "Admin",
+  };
+
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const loadUser = () => {
+    const raw = localStorage.getItem(storageKeys.user);
+    return raw ? JSON.parse(raw) : null;
+  };
+
+  const saveUser = (user) => {
+    localStorage.setItem(storageKeys.user, JSON.stringify(user));
+  };
+
+  const clearUser = () => {
+    localStorage.removeItem(storageKeys.user);
+  };
+
+  const loadShortlist = () => {
+    const raw = localStorage.getItem(storageKeys.shortlist);
+    return raw ? JSON.parse(raw) : [];
+  };
+
+  const saveShortlist = (shortlist) => {
+    localStorage.setItem(storageKeys.shortlist, JSON.stringify(shortlist));
+  };
 
   const normalizeSkill = (skill) => {
     const key = skill.trim().toLowerCase();
@@ -187,6 +241,13 @@
 
   const getProfileById = (id) =>
     state.profiles.find((profile) => profile.id === id);
+
+  const getProfileByName = (name) => {
+    const normalized = name.trim().toLowerCase();
+    return state.profiles.find(
+      (profile) => profile.name.toLowerCase() === normalized
+    );
+  };
 
   const scoreRole = (profile, role) => {
     const profileSkills = normalizeSkills(profile.skills);
@@ -296,6 +357,90 @@
     state.decisionLog.lastUpdated = new Date().toLocaleString();
   };
 
+  const ensureEmployeeProfile = () => {
+    if (!state.user || state.user.role !== "employee") return;
+    if (state.user.name) {
+      const match = getProfileByName(state.user.name);
+      if (match) {
+        state.selectedProfileId = match.id;
+        return;
+      }
+    }
+    state.selectedProfileId = state.profiles[0]?.id || null;
+  };
+
+  const addToShortlist = (profileId) => {
+    if (!profileId) return;
+    if (!state.shortlist.includes(profileId)) {
+      state.shortlist.push(profileId);
+      saveShortlist(state.shortlist);
+      addNotice("success", "Candidate added to shortlist.");
+    }
+  };
+
+  const removeFromShortlist = (profileId) => {
+    state.shortlist = state.shortlist.filter((id) => id !== profileId);
+    saveShortlist(state.shortlist);
+    render();
+  };
+
+  const renderLogin = () => {
+    app.innerHTML = `
+      <div class="login-shell d-flex align-items-center">
+        <div class="container">
+          <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+              <div class="card shadow-sm">
+                <div class="card-body p-4">
+                  <h1 class="h4 mb-2">AIS Talent Optimization – Demo Access</h1>
+                  <p class="small-muted">Select a role to enter the demo environment.</p>
+                  <div class="mb-3">
+                    <label class="form-label">Role</label>
+                    <select class="form-select" id="roleSelect">
+                      <option value="employee">Employee</option>
+                      <option value="recruiter">Recruiter</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Display name (optional)</label>
+                    <input type="text" class="form-control" id="displayNameInput" placeholder="e.g., Alex Morgan" />
+                  </div>
+                  <button class="btn btn-primary w-100" id="enterDemoButton">Enter Demo</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("enterDemoButton")?.addEventListener("click", () => {
+      const role = document.getElementById("roleSelect").value;
+      const nameInput = document.getElementById("displayNameInput").value.trim();
+      state.user = {
+        role,
+        name: nameInput || "Demo User",
+      };
+      saveUser(state.user);
+      ensureEmployeeProfile();
+      render();
+    });
+  };
+
+  const renderNavbar = () => `
+    <nav class="navbar navbar-expand-lg bg-white border-bottom shadow-sm">
+      <div class="container">
+        <span class="navbar-brand fw-semibold">AIS 2026 Talent Optimization</span>
+        <div class="d-flex align-items-center gap-3">
+          <span class="badge role-badge">${roleLabels[state.user.role]}</span>
+          <span class="small-muted">${state.user.name}</span>
+          <button class="btn btn-outline-secondary btn-sm" data-action="logout">Switch Role / Log out</button>
+        </div>
+      </div>
+    </nav>
+  `;
+
   const renderNotices = () => {
     if (!state.notices.length) return "";
     return state.notices
@@ -382,7 +527,119 @@
     return `<span class="badge ${isFlagged ? "text-bg-warning" : "text-bg-success"}">${state.biasCheck.status}</span>`;
   };
 
-  const render = () => {
+  const renderShortlist = () => {
+    if (!state.shortlist.length) {
+      return `<div class="small-muted">No candidates shortlisted yet.</div>`;
+    }
+    return `
+      <ul class="list-group shortlist-panel">
+        ${state.shortlist
+          .map((id) => {
+            const profile = getProfileById(id);
+            if (!profile) return "";
+            return `
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>${profile.name}</span>
+                <button class="btn btn-sm btn-outline-danger" data-action="remove-shortlist" data-id="${profile.id}">Remove</button>
+              </li>
+            `;
+          })
+          .join("")}
+      </ul>
+    `;
+  };
+
+  const renderRolesList = () => `
+    <div class="mt-3">
+      <div class="fw-semibold mb-2">Open Roles</div>
+      <ul class="list-group">
+        ${state.roles
+          .map(
+            (role) =>
+              `<li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>${role.title}</span>
+                <span class="badge text-bg-light">${role.requiredSkills.length} skills</span>
+              </li>`
+          )
+          .join("")}
+      </ul>
+    </div>
+  `;
+
+  const renderGovernanceCenter = () => `
+    <div class="card shadow-sm mt-4">
+      <div class="card-body">
+        <h3 class="h5 section-title">Governance Center</h3>
+        <div class="mb-3">
+          <div class="fw-semibold">Recent decision logs</div>
+          <ul class="list-group mt-2">
+            ${state.recentDecisions
+              .map(
+                (log) => `
+                  <li class="list-group-item">
+                    <div class="fw-semibold">${log.action}</div>
+                    <div class="small-muted">${log.timestamp} • ${log.model}</div>
+                  </li>
+                `
+              )
+              .join("")}
+          </ul>
+        </div>
+        <div class="mb-3">
+          <div class="fw-semibold">Bias check results</div>
+          <div class="small-muted">
+            ${state.biasCheck ? state.biasCheck.message : "No bias checks executed in this session."}
+          </div>
+        </div>
+        <div>
+          <div class="fw-semibold">Privacy settings</div>
+          <div class="small-muted">PII redaction: ON</div>
+          <div class="small-muted">Data retention: 30 days</div>
+          <div class="small-muted">Human review required: YES</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const renderEmployeeDashboard = () =>
+    renderDashboardShell({
+      allowBias: true,
+      showShortlist: false,
+      profileSelectDisabled: true,
+      showRolesList: false,
+      fairnessMessage: null,
+      showGovernanceCenter: false,
+    });
+
+  const renderRecruiterDashboard = () =>
+    renderDashboardShell({
+      allowBias: false,
+      showShortlist: true,
+      profileSelectDisabled: false,
+      showRolesList: false,
+      fairnessMessage:
+        "Fairness Summary: Bias checks are administered by the governance team. Results are available after admin review.",
+      showGovernanceCenter: false,
+    });
+
+  const renderAdminDashboard = () =>
+    renderDashboardShell({
+      allowBias: true,
+      showShortlist: false,
+      profileSelectDisabled: false,
+      showRolesList: true,
+      fairnessMessage: null,
+      showGovernanceCenter: true,
+    });
+
+  const renderDashboardShell = ({
+    allowBias,
+    showShortlist,
+    profileSelectDisabled,
+    showRolesList,
+    fairnessMessage,
+    showGovernanceCenter,
+  }) => {
     const profile = getProfileById(state.selectedProfileId);
     const recommendationsMarkup = state.recommendations.length
       ? state.recommendations.map(renderRoleCard).join("")
@@ -393,8 +650,24 @@
         </div>
       `;
 
-    app.innerHTML = `
+    const biasMarkup = allowBias
+      ? `
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <div class="fw-semibold">Bias check status</div>
+          ${renderBiasBadge()}
+        </div>
+        <div class="small-muted mb-3">
+          ${state.biasCheck ? state.biasCheck.message : "Run the bias check to validate fairness consistency."}
+        </div>
+      `
+      : `
+        <div class="fw-semibold mb-2">Fairness Summary</div>
+        <div class="small-muted mb-3">${fairnessMessage}</div>
+      `;
+
+    return `
       <div class="app-container">
+        ${renderNavbar()}
         <header class="ey-gradient text-white py-4">
           <div class="container">
             <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center">
@@ -426,7 +699,9 @@
                   <h2 class="h5 section-title">Profile Selection</h2>
                   <div class="small-muted mb-3">Select a synthetic employee profile to begin.</div>
                   <label for="profileSelect" class="form-label">Employee Profile</label>
-                  <select class="form-select mb-3" id="profileSelect" aria-label="Select employee profile">
+                  <select class="form-select mb-3" id="profileSelect" aria-label="Select employee profile" ${
+                    profileSelectDisabled ? "disabled" : ""
+                  }>
                     ${state.profiles
                       .map(
                         (p) =>
@@ -455,10 +730,24 @@
                     <button class="btn btn-outline-primary" data-action="upskilling" ${state.loading.upskilling ? "disabled" : ""}>
                       ${state.loading.upskilling ? `<span class="spinner-border spinner-border-sm me-2"></span>Building plan...` : "Generate Upskilling Plan"}
                     </button>
-                    <button class="btn btn-outline-dark" data-action="bias" ${state.loading.bias ? "disabled" : ""}>
+                    <button class="btn btn-outline-dark" data-action="bias" ${state.loading.bias ? "disabled" : ""} ${allowBias ? "" : "disabled"}>
                       ${state.loading.bias ? `<span class="spinner-border spinner-border-sm me-2"></span>Running check...` : "Run Bias Check"}
                     </button>
                   </div>
+                  ${
+                    showShortlist
+                      ? `
+                        <div class="mt-3">
+                          <button class="btn btn-outline-success w-100" data-action="shortlist-add">Add to Shortlist</button>
+                        </div>
+                        <div class="mt-3">
+                          <div class="fw-semibold mb-2">Candidate Shortlist</div>
+                          ${renderShortlist()}
+                        </div>
+                      `
+                      : ""
+                  }
+                  ${showRolesList ? renderRolesList() : ""}
                 </div>
               </div>
             </aside>
@@ -493,13 +782,7 @@
                 <h2 class="h4 section-title">Governance &amp; Guardrails</h2>
                 <div class="card shadow-sm">
                   <div class="card-body">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                      <div class="fw-semibold">Bias check status</div>
-                      ${renderBiasBadge()}
-                    </div>
-                    <div class="small-muted mb-3">
-                      ${state.biasCheck ? state.biasCheck.message : "Run the bias check to validate fairness consistency."}
-                    </div>
+                    ${biasMarkup}
                     <div class="mb-3">
                       <div class="fw-semibold">Privacy notice</div>
                       <div class="small-muted">This demo uses synthetic data. No PII is sent to the AI model.</div>
@@ -516,11 +799,28 @@
                   </div>
                 </div>
               </div>
+              ${showGovernanceCenter ? renderGovernanceCenter() : ""}
             </section>
           </div>
         </main>
       </div>
     `;
+  };
+
+  const render = () => {
+    if (!state.user) {
+      renderLogin();
+      return;
+    }
+
+    if (state.user.role === "employee") {
+      ensureEmployeeProfile();
+      app.innerHTML = renderEmployeeDashboard();
+    } else if (state.user.role === "recruiter") {
+      app.innerHTML = renderRecruiterDashboard();
+    } else {
+      app.innerHTML = renderAdminDashboard();
+    }
 
     const profileSelect = document.getElementById("profileSelect");
     profileSelect?.addEventListener("change", (event) => {
@@ -532,6 +832,12 @@
       button.addEventListener("click", async (event) => {
         const action = event.currentTarget.dataset.action;
         clearNotices();
+        if (action === "logout") {
+          clearUser();
+          state.user = null;
+          render();
+          return;
+        }
         if (!state.selectedProfileId) return;
         if (action === "recommendations") {
           await handleRecommendations();
@@ -540,7 +846,21 @@
           await handleUpskilling();
         }
         if (action === "bias") {
-          await handleBiasCheck();
+          if (state.user.role !== "recruiter") {
+            await handleBiasCheck();
+          }
+        }
+        if (action === "shortlist-add") {
+          addToShortlist(state.selectedProfileId);
+        }
+        if (action === "remove-shortlist") {
+          const id = event.currentTarget.dataset.id;
+          removeFromShortlist(id);
+        }
+        if (action === "dismiss-notice") {
+          const id = Number(event.currentTarget.dataset.id);
+          state.notices = state.notices.filter((notice) => notice.id !== id);
+          render();
         }
       });
     });
@@ -551,14 +871,6 @@
         state.mode = event.target.checked ? "api" : "mock";
         render();
       });
-
-    document.querySelectorAll("[data-action='dismiss-notice']").forEach((btn) => {
-      btn.addEventListener("click", (event) => {
-        const id = Number(event.currentTarget.dataset.id);
-        state.notices = state.notices.filter((notice) => notice.id !== id);
-        render();
-      });
-    });
   };
 
   const handleRecommendations = async () => {
@@ -686,6 +998,8 @@
   const init = async () => {
     state.profiles = mockProfiles;
     state.roles = mockRoles;
+    state.user = loadUser();
+    state.shortlist = loadShortlist();
     state.selectedProfileId = state.profiles[0]?.id || null;
 
     try {
@@ -702,6 +1016,10 @@
       state.mode = "mock";
       state.profiles = mockProfiles;
       state.roles = mockRoles;
+    }
+
+    if (state.user?.role === "employee") {
+      ensureEmployeeProfile();
     }
 
     render();

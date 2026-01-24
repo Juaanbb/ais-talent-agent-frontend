@@ -1,0 +1,51 @@
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial,
+    sans-serif;
+  color: #1f2a44;
+}
+
+.ey-gradient {
+  background: linear-gradient(135deg, #1b2b4d 0%, #223a6b 60%, #2c4a8a 100%);
+}
+
+.app-container {
+  min-height: 100vh;
+}
+
+.sidebar-card {
+  border-left: 4px solid #f1c40f;
+}
+
+.section-title {
+  letter-spacing: 0.2px;
+}
+
+.role-card {
+  border-top: 4px solid #1b2b4d;
+}
+
+.badge-hr {
+  background: #f1c40f;
+  color: #1f2a44;
+}
+
+.small-muted {
+  font-size: 0.9rem;
+  color: #5a6b86;
+}
+
+.timeline-step {
+  border-left: 3px solid #dee2e6;
+  padding-left: 1rem;
+}
+
+.decision-log {
+  background: #f8f9fb;
+  border: 1px dashed #ccd4e0;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+}

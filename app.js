@@ -397,6 +397,7 @@
                   <div class="mb-3">
                     <label class="form-label">Role</label>
                     <select class="form-select" id="roleSelect">
+                      <option value="" disabled selected hidden>Select an option</option>
                       <option value="employee">Employee</option>
                       <option value="recruiter">Recruiter</option>
                       <option value="admin">Admin</option>
